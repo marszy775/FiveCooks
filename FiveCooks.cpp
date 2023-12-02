@@ -1,4 +1,4 @@
-﻿#include <iostream>
+#include <iostream>
 #include <cstdlib>
 #include <semaphore>
 #include <thread>
@@ -9,12 +9,12 @@
 #include <numeric>
 #include <random>
 
-static constexpr unsigned TABLE_CAPACITY = 5;
+static constexpr unsigned TABLE_CAPACITY = 4;
 static constexpr int TABLE_WEIGHT_LIMIT = 20;
 
 std::random_device r;
 std::default_random_engine e1(r());
-std::uniform_int_distribution<int> uniform_dist(1, 20);
+std::uniform_int_distribution<int> uniform_dist(1, TABLE_WEIGHT_LIMIT);
 
 class Food {
 	int weight;
@@ -36,30 +36,28 @@ public:
 	Table(const Table&) = delete;
 	const Table& operator = (const Table&) = delete;
 
-	void put(int weight);
+	void put(int weight) {
+		std::unique_lock<std::mutex> lock(meal_mutex);
+		auto table_weight = std::reduce(std::begin(meals), std::end(meals));
+		while ((table_weight + weight) > TABLE_WEIGHT_LIMIT || meals.size() >= TABLE_CAPACITY) {
+			check.wait(lock);
+			table_weight = std::reduce(std::begin(meals), std::end(meals));
+		}
+		meals.push_back(weight);
+		check.notify_all();
+	}
 
-	int get();
+	int get() {
+		std::unique_lock<std::mutex> lock(meal_mutex);
+		while (meals.size() == 0) {
+			check.wait(lock);
+		}
+		int result = meals[0];
+		meals.erase(meals.begin());
+		return result;
+	}
 };
 
-void Table::put(int weight) {
-	std::unique_lock<std::mutex> lock(meal_mutex);
-	auto table_weight = std::reduce(std::begin(meals), std::end(meals));
-	while ((table_weight + weight) > TABLE_WEIGHT_LIMIT || meals.size() >= TABLE_CAPACITY) {
-		check.wait(lock);
-	}
-	meals.push_back(weight);
-	check.notify_all();
-}
-
-int Table::get() {
-	std::unique_lock<std::mutex> lock(meal_mutex);
-	while (meals.size() == 0) {
-		check.wait(lock);
-	}
-	int result = meals[0];
-	meals.erase(meals.begin());
-	return result;
-}
 
 void message(std::string str, int chef_id) {
 	static std::mutex mtx;
