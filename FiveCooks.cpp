@@ -66,9 +66,9 @@ void message(std::string str, int chef_id) {
 }
 
 void FiveChef(std::binary_semaphore& left, std::binary_semaphore& right, int chef_id) {
+	static Table table;
 	for (;;) {
 		Food food;
-		Table table;
 		int food_weight = food.get_food();
 
 		message(" is cooking", chef_id);
