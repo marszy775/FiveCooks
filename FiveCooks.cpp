@@ -58,7 +58,6 @@ public:
 	}
 };
 
-
 void message(std::string str, int chef_id) {
 	static std::mutex mtx;
 	std::lock_guard<std::mutex> lock(mtx);
@@ -71,29 +70,35 @@ void FiveChef(std::binary_semaphore& left, std::binary_semaphore& right, int che
 		Food food;
 		int food_weight = food.get_food();
 
+		left.acquire();
+		right.acquire();
+		message(" took forks to cook", chef_id);
+
 		message(" is cooking", chef_id);
-		std::this_thread::sleep_for(std::chrono::milliseconds(food_weight * 300));
+		std::this_thread::sleep_for(std::chrono::milliseconds(food_weight*300));
+
+		left.release();
+		right.release();
+		message(" put down forks after cooking", chef_id);
+
+		std::this_thread::yield();
 
 		message(" is waiting to put his food on the table", chef_id);
 		table.put(food_weight);
 
 		left.acquire();
-		message(" took left fork", chef_id);
-
 		right.acquire();
-		message(" took right fork", chef_id);
+		message(" took forks to eat", chef_id);
 
 		message(" is waiting for food", chef_id);
 		int eaten = table.get();
 
 		message(" is eating", chef_id);
-		std::this_thread::sleep_for(std::chrono::milliseconds(eaten * 200));
+		std::this_thread::sleep_for(std::chrono::milliseconds(eaten*200));
 
 		left.release();
-		message(" put down left fork", chef_id);
-
 		right.release();
-		message(" put down right fork", chef_id);
+		message(" put down forks after eating", chef_id);
 
 		std::this_thread::yield();
 	}
